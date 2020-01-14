@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(rccar_ctr)
+project(rccar_ros_mpc)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 add_definitions(-std=c++11 -O3)
@@ -125,7 +125,6 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   /usr/local/include
-    
   include
 )
 

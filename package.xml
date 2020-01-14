@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>rccar_ctr</name>
+  <name>rccar_ros_mpc</name>
   <version>0.0.0</version>
   <description>The rccar_ctr package</description>
 
