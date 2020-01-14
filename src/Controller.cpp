@@ -7,7 +7,9 @@
 #include "geometry_msgs/Pose.h"
 #include <tf/transform_datatypes.h>
 #include <ros/package.h>
-
+#include "nav_msgs/Path.h"
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/Pose.h"
 
 // for MPC
 #include "MPC.h"
@@ -24,17 +26,19 @@ class Controller
 {
 		public:
 				void observe(const nav_msgs::Odometry::ConstPtr& msg);
+				void get_path(const nav_msgs::Path::ConstPtr& msg);
 				ackermann_msgs::AckermannDriveStamped control();
 				bool verbose = false;
 				// vector<double> path_x = {};
 				// vector<double> path_y = {};
-				vector<double> path_x = {};
-				vector<double> path_y = {};
-				vector<double> path_goal = {};
+				std::vector<double> path_x = vector<double>(32);
+				std::vector<double> path_y = vector<double>(32)	;
+				std::vector<double> path_goal = vector<double>(2);
 				Controller(){
-					if(true){
-						read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
-					}
+					// if(true){
+					// 	read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
+					// }
+					
 				}
 		private:
 				MPC mpc;
@@ -110,6 +114,22 @@ void Controller::observe(const nav_msgs::Odometry::ConstPtr& msg)
 		// 		ROS_INFO("Vel-> Linear: [%f], Angular: [%f]\n", vel, vth);
 		// }
 		
+}
+
+void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
+{
+	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
+	// std::cout<<poses.size()<<std::endl;
+	int length = poses.size();
+	path_x = std::vector<double>(length);
+	path_y = std::vector<double>(length); 
+	for (int i = 0; i < poses.size(); i++)
+	{
+		path_x.at(i) = poses.at(i).pose.position.x;
+		path_y.at(i) = poses.at(i).pose.position.y;
+	}
+	path_goal.at(0) = path_x.back();
+	path_goal.at(1) = path_y.back();
 }
 
 ackermann_msgs::AckermannDriveStamped Controller::control(){
@@ -209,10 +229,11 @@ ackermann_msgs::AckermannDriveStamped Controller::control(){
 
 int main(int argc, char **argv)
 {
-		ros::init(argc, argv, "odom_listener");
+		ros::init(argc, argv, "controller");
 		ros::NodeHandle n;
 		Controller controller;
 		ros::Subscriber state = n.subscribe("/odom", 1, &Controller::observe, &controller);
+		ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
 		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 1);
 		ros::Rate loop_rate(10);
 
@@ -226,7 +247,7 @@ int main(int argc, char **argv)
 				loop_rate.sleep();
 	
 		}
-	//ros::spin();
+	ros::spin();
 
 	return 0;
 }

@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <vector>
+
 void read_csv_path(std::string path, vector<double>& path_x, vector<double>& path_y, vector<double>& path_goal){
   //loading path for debug
   int line_counter = 0;
