@@ -27,6 +27,7 @@ class Controller
 		public:
 				void observe(const nav_msgs::Odometry::ConstPtr& msg);
 				void get_path(const nav_msgs::Path::ConstPtr& msg);
+				void get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg);
 				ackermann_msgs::AckermannDriveStamped control();
 				bool verbose = false;
 				// vector<double> path_x = {};
@@ -116,6 +117,12 @@ void Controller::observe(const nav_msgs::Odometry::ConstPtr& msg)
 		
 }
 
+void Controller::get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg){
+	path_goal.at(0) = msg->pose.position.x;
+	path_goal.at(1) = msg->pose.position.y;
+
+}
+
 void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 {
 	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
@@ -128,8 +135,6 @@ void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 		path_x.at(i) = poses.at(i).pose.position.x;
 		path_y.at(i) = poses.at(i).pose.position.y;
 	}
-	path_goal.at(0) = path_x.back();
-	path_goal.at(1) = path_y.back();
 }
 
 ackermann_msgs::AckermannDriveStamped Controller::control(){
@@ -137,10 +142,13 @@ ackermann_msgs::AckermannDriveStamped Controller::control(){
 		ackermann_msgs::AckermannDriveStamped _ackermann_msg = ackermann_msgs::AckermannDriveStamped();
 		_ackermann_msg.header.frame_id = "base_link";
 		_ackermann_msg.header.stamp = ros::Time::now();
-		vector<double> ptsx(path_x.begin()+curr, path_x.begin() + std::min((int)path_x.size()-1, curr+6));
-		vector<double> ptsy(path_y.begin()+curr, path_y.begin() + std::min((int)path_y.size()-1, curr+6));
+
+		// vector<double> ptsx(path_x.begin()+curr, path_x.begin() + std::min((int)path_x.size()-1, curr+6));
+		// vector<double> ptsy(path_y.begin()+curr, path_y.begin() + std::min((int)path_y.size()-1, curr+6));
+		vector<double> ptsx = path_x;
+		vector<double> ptsy = path_y;
 		// deal with path
-		if (/*curr == path_x.size()-1  ||*/ pow( x - path_goal.at(0), 2)+ pow( y - path_goal.at(1), 2) < 0.3){
+		if (/*curr == path_x.size()-1  ||*/ pow( x - path_goal.at(0), 2)+ pow( y - path_goal.at(1), 2) < 0.3 || ptsx.size()<N){
 			// reached
 			_ackermann_msg.drive.steering_angle = 0;
 			_ackermann_msg.drive.speed = 0;
@@ -153,72 +161,59 @@ ackermann_msgs::AckermannDriveStamped Controller::control(){
 				}
 			}
 			
+			// solve MPC		
+			double px = x;
+			double py = y;
+			double psi = th;
+			double v = vel;
+
+			double str = sta;
+			double throttle = a;
+			for(auto i=0;i<ptsx.size();i++){
+					double diffx = ptsx[i]-px;
+					double diffy = ptsy[i]-py;
+					ptsx[i] = diffx * cos(psi) + diffy * sin(psi);
+					ptsy[i] = diffy * cos(psi) - diffx * sin(psi);
+			}
+			int horizon = ptsx.size();
+			Eigen::VectorXd ptsxV = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
+			Eigen::VectorXd ptsyV = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
 			
-			// if (pow( x - ptsx.front(),2) + pow( y - ptsy.front(), 2) < 0.3){
-			if (cos(th) * (ptsx.front() - x) + sin(th) * (ptsy.front()-y) < 0 && curr < path_x.size()-4 ){
-				curr ++;
-			}
-			else{
-				// solve MPC		
-				double px = x;
-				double py = y;
-				double psi = th;
-				double v = vel;
+			Eigen::VectorXd state(4);
+			
+			double px_l = v * dt;
+			double py_l = 0.0;
+			double psi_l = v * str / Lf * dt;
+			double v_l = v + throttle*dt;
+			// double cte_l =  polyeval(coeffs, 0) + v * CppAD::sin(atan(coeffs[1])) * dt;
+			// double epsi_l = -atan(coeffs[1])+psi_l;
+			state << px_l, py_l, psi_l, v_l; //cte_l, epsi_l;
+			std::vector<double> r;
+			r = mpc.Solve(state, ptsxV, ptsyV);
 
-				double str = sta;
-				double throttle = a;
-				double xgoal = ptsx.at(0);
-				double ygoal = ptsy.at(0);
-				vector<double> goal = {(xgoal-px)*cos(psi)+(ygoal-py)*sin(psi), (ygoal-py)*cos(psi)-(xgoal-px)*sin(psi) };
-				for(auto i=0;i<ptsx.size();i++){
-						double diffx = ptsx[i]-px;
-						double diffy = ptsy[i]-py;
-						ptsx[i] = diffx * cos(psi) + diffy * sin(psi);
-						ptsy[i] = diffy * cos(psi) - diffx * sin(psi);
-				}
+			double steer_value = r[0]; /// (deg2rad(25)*Lf);
+			double throttle_value = r[1]; //r[1]*(1-fabs(steer_value))+0.1;
+			double velocity_value = vel + throttle_value * dt;  
+			// vector<double> mpc_x_vals;
+			// vector<double> mpc_y_vals;
 
-				if(ptsx.size()>=4){
-					Eigen::VectorXd ptsxV = Eigen::VectorXd::Map(ptsx.data(), ptsx.size());
-					Eigen::VectorXd ptsyV = Eigen::VectorXd::Map(ptsy.data(), ptsy.size());
-					coeffs = polyfit(ptsxV, ptsyV, 3);
-				}
-				Eigen::VectorXd goalV = Eigen::VectorXd::Map(goal.data(), goal.size());
-				// std::cout << coeffs << std::endl;
-				Eigen::VectorXd state(6);
-				
-				double px_l = v * dt;
-				double py_l = 0.0;
-				double psi_l = v * str / Lf * dt;
-				double v_l = v + throttle*dt;
-				double cte_l =  polyeval(coeffs, 0) + v * CppAD::sin(atan(coeffs[1])) * dt;
-				double epsi_l = -atan(coeffs[1])+psi_l;
-				state << px_l, py_l, psi_l, v_l, cte_l, epsi_l;
-				std::vector<double> r;
-				r = mpc.Solve(state, coeffs, goalV);
+			// for ( int i = 2; i < r.size(); i++ ) {
+			// 		if ( i % 2 == 0 ) {
+			// 				mpc_x_vals.push_back( r[i] ); // for x
+			// 				// std::cout<<"x"<<r[i]<<",";
+			// 		} else {
+			// 				mpc_y_vals.push_back( r[i] );// for y
+			// 				// std::cout<<"y"<<r[i]<<std::endl;
+			// 		}
+			// }
+			ROS_INFO("sta: [%f], v:[%f], a:[%f]", steer_value, velocity_value, throttle_value);
+			ROS_INFO("x: [%f], y:[%f], th:[%f]", x, y, th);
 
-				double steer_value = r[0]; /// (deg2rad(25)*Lf);
-				double throttle_value = r[1]; //r[1]*(1-fabs(steer_value))+0.1;
-				double velocity_value = vel + throttle_value * dt;  
-				// vector<double> mpc_x_vals;
-				// vector<double> mpc_y_vals;
-
-				// for ( int i = 2; i < r.size(); i++ ) {
-				// 		if ( i % 2 == 0 ) {
-				// 				mpc_x_vals.push_back( r[i] ); // for x
-				// 				// std::cout<<"x"<<r[i]<<",";
-				// 		} else {
-				// 				mpc_y_vals.push_back( r[i] );// for y
-				// 				// std::cout<<"y"<<r[i]<<std::endl;
-				// 		}
-				// }
-				ROS_INFO("sta: [%f], v:[%f], a:[%f]", steer_value, velocity_value, throttle_value);
-				ROS_INFO("x: [%f], y:[%f], th:[%f]", x, y, th);
-
-				
-				_ackermann_msg.drive.steering_angle = steer_value;
-				_ackermann_msg.drive.speed = velocity_value;
-				_ackermann_msg.drive.acceleration = throttle_value;//throttle_value;
-			}
+			
+			_ackermann_msg.drive.steering_angle = steer_value;
+			_ackermann_msg.drive.speed = velocity_value;
+			_ackermann_msg.drive.acceleration = throttle_value;//throttle_value;
+			
 		}
 		
 
@@ -234,6 +229,7 @@ int main(int argc, char **argv)
 		Controller controller;
 		ros::Subscriber state = n.subscribe("/odom", 1, &Controller::observe, &controller);
 		ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
+		ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
 		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 1);
 		ros::Rate loop_rate(10);
 
