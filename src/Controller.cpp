@@ -140,13 +140,14 @@ void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 			start = i;
 			min = tmp;
 		}
-	if(start+length > poses.size()){
-			length = poses.size() - start;
-		}
+		if(start+length > poses.size()){
+				length = poses.size() - start;
+			}
 
-		if(start > curr){
-			curr = start;
-		}
+		// if(start > curr){
+		// 	curr = start;
+		// }
+		curr = start;
 	}
 
 	
