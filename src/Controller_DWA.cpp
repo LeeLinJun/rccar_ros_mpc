@@ -1,6 +1,5 @@
 // for math
 #include <cmath>
-
 // for ros
 #include "ros/ros.h"
 #include "nav_msgs/Odometry.h"
@@ -45,13 +44,13 @@ class Controller
 		private:
 				MPC mpc;
 				double x, 
-					   y, 
-					   th, 
-					   vel, 
-					   vth,
-					   a = 0, 
-					   sta=0;
-				int curr = 0;
+					y, 
+					th, 
+					vel, 
+					vth,
+					a = 0, 
+					sta=0;
+				int curr = 0; 
 				Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,int order);
 				double polyeval(Eigen::VectorXd coeffs, double x);
 				Eigen::VectorXd coeffs;
@@ -128,36 +127,13 @@ void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 {
 	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
 	// std::cout<<poses.size()<<std::endl;
-	int length = poses.size()>N?N:poses.size(), start = 0;
-
-	double min = 1e10;
-	double xi = 0., yi = 0., tmp = 0.;
-	for(int i = 0; i< poses.size(); i++){
-		xi = poses.at(i).pose.position.x;
-		yi = poses.at(i).pose.position.y;
-		tmp = (x-xi)*(x-xi) + (y-yi) * (y-yi);
-		if(tmp < min){
-			start = i;
-			min = tmp;
-		}
-	if(start+length > poses.size()){
-			length = poses.size() - start;
-		}
-
-		if(start > curr){
-			curr = start;
-		}
-	}
-
-	
-	
+	int length = poses.size();
 	path_x = std::vector<double>(length);
 	path_y = std::vector<double>(length); 
-	
-	for (int i = 0; i < length; i++)
+	for (int i = 0; i < poses.size(); i++)
 	{
-		path_x.at(i) = poses.at(i+curr).pose.position.x;
-		path_y.at(i) = poses.at(i+curr).pose.position.y;
+		path_x.at(i) = poses.at(i).pose.position.x;
+		path_y.at(i) = poses.at(i).pose.position.y;
 	}
 }
 
@@ -174,7 +150,6 @@ ackermann_msgs::AckermannDriveStamped Controller::control(){
 		// deal with path
 		if (/*curr == path_x.size()-1  ||*/ pow( x - path_goal.at(0), 2)+ pow( y - path_goal.at(1), 2) < 0.3 || ptsx.size()<N){
 			// reached
-			curr = 0;
 			_ackermann_msg.drive.steering_angle = 0;
 			_ackermann_msg.drive.speed = 0;
 			_ackermann_msg.drive.acceleration = 0;//throttle_value;
@@ -252,16 +227,20 @@ int main(int argc, char **argv)
 		ros::init(argc, argv, "controller");
 		ros::NodeHandle n;
 		Controller controller;
-		ros::Subscriber state = n.subscribe("/odom", 10, &Controller::observe, &controller);
+		ros::Subscriber state = n.subscribe("/odom", 1, &Controller::observe, &controller);
 		// ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
-		ros::Subscriber path = n.subscribe("/rrt_path", 10, &Controller::get_path, &controller);
+		ros::Subscriber path = n.subscribe("/rrt_path", 1, &Controller::get_path, &controller);
 		ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
 		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 1);
 		ros::Rate loop_rate(10);
+
 		while (ros::ok())
 		{       
+				
 				control.publish(controller.control());
+
 				ros::spinOnce();
+
 				loop_rate.sleep();
 	
 		}

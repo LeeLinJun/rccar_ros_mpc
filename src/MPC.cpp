@@ -25,14 +25,14 @@ class FG_eval {
       // fg[0] += 100.0*CppAD::pow(vars[epsi_start + t], 2);
       fg[0] += 100 *CppAD::pow(vars[x_start + t]-tgx[t], 2);
       fg[0] += 100 *CppAD::pow(vars[y_start + t]-tgy[t], 2);
-      fg[0] += 50*CppAD::pow(vars[v_start + t] - ref_v, 2);
+      fg[0] += 30*CppAD::pow(CppAD::abs(vars[v_start + t]) - ref_v, 2);
 
       // fg[0] += 10*(CppAD::pow(vars[x_start + t] - goal[0], 2)+CppAD::pow(vars[y_start + t] - goal[1], 2));
     }
 
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += 10*CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 10*CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + t], 2);
     }
 
     // for (int t = 0; t < N - 2; t++) {
@@ -49,6 +49,13 @@ class FG_eval {
     // fg[1 + cte_start] = vars[cte_start];
     // fg[1 + epsi_start] = vars[epsi_start];
     for (int t = 1; t < N; t++) {
+      if(t >= tgx.size()){
+        fg[1 + x_start + t] = 0;
+        fg[1 + y_start + t] = 0;
+        fg[1 + psi_start + t] = 0;
+        fg[1 + v_start + t] = 0;
+      }
+      else{
         AD<double> x1 = vars[x_start + t];
         AD<double> y1 = vars[y_start + t];
         AD<double> psi1 = vars[psi_start + t];
@@ -70,6 +77,8 @@ class FG_eval {
         fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
         fg[1 + psi_start + t] = psi1 - (psi0 + v0 * delta0 / Lf * dt);
         fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
+      }
+      
         // fg[1 + cte_start + t] =
         //     cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
         // fg[1 + epsi_start + t] =
@@ -176,7 +185,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd ptsx, Eigen::Ve
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  options += "Numeric max_cpu_time          0.1\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
