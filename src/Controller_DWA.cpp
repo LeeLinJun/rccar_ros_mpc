@@ -12,7 +12,7 @@
 #include "geometry_msgs/Pose.h"
 
 // for MPC
-#include "MPC.h"
+#include "MPC_DWA.h"
 #include <cppad/cppad.hpp>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 		Controller controller;
 		ros::Subscriber state = n.subscribe("/odom", 1, &Controller::observe, &controller);
 		// ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
-		ros::Subscriber path = n.subscribe("/rrt_path", 1, &Controller::get_path, &controller);
+		ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
 		ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
 		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 1);
 		ros::Rate loop_rate(10);
