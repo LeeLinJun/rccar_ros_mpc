@@ -38,7 +38,7 @@ const double Lf = 0.324;
 const int N = 40;
 const double ref_cte = 0;
 const double ref_epsi = 0;
-const double ref_v = 0.3;
+const double ref_v = 0.1;
 
 const size_t x_start = 0;
 const size_t y_start = x_start + N;

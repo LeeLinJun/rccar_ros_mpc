@@ -118,17 +118,17 @@ void Controller::observe(const nav_msgs::Odometry::ConstPtr& msg)
 		
 }
 
-void Controller::get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg){
-	// path_goal.at(0) = msg->pose.position.x;
-	// path_goal.at(1) = msg->pose.position.y;
+// void Controller::get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg){
+// 	// path_goal.at(0) = msg->pose.position.x;
+// 	// path_goal.at(1) = msg->pose.position.y;
 
-}
+// }
 
 void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 {
 	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
 	// std::cout<<poses.size()<<std::endl;
-	int k = 10;
+	int k = 2;
 	int length = poses.size()>N*k ? N: poses.size(), start = 0;
 	
 	double min = 1e10;
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 		ros::Subscriber state = n.subscribe("/odom", 20, &Controller::observe, &controller);
 		// ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
 		ros::Subscriber path = n.subscribe("/rrt_path", 20, &Controller::get_path, &controller);
-		ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
+		// ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
 		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 10);
 		ros::Rate loop_rate(20);
 		while (ros::ok())

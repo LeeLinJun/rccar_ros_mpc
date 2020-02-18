@@ -29,6 +29,8 @@ RUN apt update && apt install -y  mesa-utils tmux vim sudo zsh
 WORKDIR /root/catkin_ws
 
 #COPY . /root/catkin_ws/src/rccar_ros_mpc
-COPY rccar_ros_mpc /root/catkin_ws/src/rccar_ros_mpc
-COPY racecar_simulator /root/catkin_ws/src/racecar_simulator
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
+
+# COPY rccar_ros_mpc /root/catkin_ws/src/rccar_ros_mpc
+# COPY racecar_simulator /root/catkin_ws/src/racecar_simulator
 RUN catkin build
