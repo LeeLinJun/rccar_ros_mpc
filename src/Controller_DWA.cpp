@@ -1,6 +1,5 @@
 // for math
 #include <cmath>
-
 // for ros
 #include "ros/ros.h"
 #include "nav_msgs/Odometry.h"
@@ -13,7 +12,7 @@
 #include "geometry_msgs/Pose.h"
 
 // for MPC
-#include "MPC.h"
+#include "MPC_DWA.h"
 #include <cppad/cppad.hpp>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
@@ -25,35 +24,36 @@
 
 class Controller
 {
-	public:
-	void observe(const nav_msgs::Odometry::ConstPtr& msg);
-	void get_path(const nav_msgs::Path::ConstPtr& msg);
-	void get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg);
-	ackermann_msgs::AckermannDriveStamped control();
-	bool verbose = false;
-	// vector<double> path_x = {};
-	// vector<double> path_y = {};
-	std::vector<double> path_x = vector<double>(32);
-	std::vector<double> path_y = vector<double>(32)	;
-	std::vector<double> path_goal = vector<double>(2);
-	Controller(){
-		// if(true){
-		// 	read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
-		// }
-	}
-	private:
-	MPC mpc;
-	double x, 
-	y, 
-	th, 
-   	vel, 
-   	vth,
-   	a = 0, 
-   	sta=0;
-	int curr = 0;
-	Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,int order);
-	double polyeval(Eigen::VectorXd coeffs, double x);
-	Eigen::VectorXd coeffs;
+		public:
+				void observe(const nav_msgs::Odometry::ConstPtr& msg);
+				void get_path(const nav_msgs::Path::ConstPtr& msg);
+				void get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg);
+				ackermann_msgs::AckermannDriveStamped control();
+				bool verbose = false;
+				// vector<double> path_x = {};
+				// vector<double> path_y = {};
+				std::vector<double> path_x = vector<double>(32);
+				std::vector<double> path_y = vector<double>(32)	;
+				std::vector<double> path_goal = vector<double>(2);
+				Controller(){
+					// if(true){
+					// 	read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
+					// }
+					
+				}
+		private:
+				MPC mpc;
+				double x, 
+					y, 
+					th, 
+					vel, 
+					vth,
+					a = 0, 
+					sta=0;
+				int curr = 0; 
+				Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,int order);
+				double polyeval(Eigen::VectorXd coeffs, double x);
+				Eigen::VectorXd coeffs;
 
 };
 
@@ -117,51 +117,23 @@ void Controller::observe(const nav_msgs::Odometry::ConstPtr& msg)
 		
 }
 
-// void Controller::get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg){
-// 	// path_goal.at(0) = msg->pose.position.x;
-// 	// path_goal.at(1) = msg->pose.position.y;
+void Controller::get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg){
+	path_goal.at(0) = msg->pose.position.x;
+	path_goal.at(1) = msg->pose.position.y;
 
-// }
+}
 
 void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 {
 	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
 	// std::cout<<poses.size()<<std::endl;
-	int k = 2;
-	int length = poses.size()>N*k ? N: poses.size(), start = 0;
-	
-	double min = 1e10;
-
-	double xi = 0., yi = 0., tmp = 0.;
-	for(int i = 0; i< poses.size(); i++){
-		xi = poses.at(i).pose.position.x;
-		yi = poses.at(i).pose.position.y;
-		tmp = (x-xi)*(x-xi) + (y-yi) * (y-yi);
-		if(tmp < min){
-			start = i;
-			min = tmp;
-		}
-		if(start+length*k > poses.size()){
-				length = (poses.size() - start) / k;
-		}
-
-		// if(start > curr){
-		// 	curr = start;
-		// }
-		curr = start;
-		path_goal.at(0) = poses.back().pose.position.x;
-		path_goal.at(1) = poses.back().pose.position.y;
-	}
-
-	
-	
+	int length = poses.size();
 	path_x = std::vector<double>(length);
 	path_y = std::vector<double>(length); 
-	
-	for (int i = 0; i < length; i++)
+	for (int i = 0; i < poses.size(); i++)
 	{
-		path_x.at(i) = poses.at(i*k+curr).pose.position.x;
-		path_y.at(i) = poses.at(i*k+curr).pose.position.y;
+		path_x.at(i) = poses.at(i).pose.position.x;
+		path_y.at(i) = poses.at(i).pose.position.y;
 	}
 }
 
@@ -173,27 +145,16 @@ ackermann_msgs::AckermannDriveStamped Controller::control(){
 
 		// vector<double> ptsx(path_x.begin()+curr, path_x.begin() + std::min((int)path_x.size()-1, curr+6));
 		// vector<double> ptsy(path_y.begin()+curr, path_y.begin() + std::min((int)path_y.size()-1, curr+6));
-		
+		vector<double> ptsx = path_x;
+		vector<double> ptsy = path_y;
 		// deal with path
-		if (pow( x - path_goal.at(0), 2)+ pow( y - path_goal.at(1), 2) < 0.1*0.1 || path_x.size()<1){
+		if (/*curr == path_x.size()-1  ||*/ pow( x - path_goal.at(0), 2)+ pow( y - path_goal.at(1), 2) < 0.3 || ptsx.size()<N){
 			// reached
-			// curr = 0;
 			_ackermann_msg.drive.steering_angle = 0;
 			_ackermann_msg.drive.speed = 0;
 			_ackermann_msg.drive.acceleration = 0;//throttle_value;
 		}
-
-		
 		else{	
-
-			std::vector<double> ptsx(N, path_x.back());
-			std::vector<double> ptsy(N, path_y.back());
-			// vector<double> ptsy = std::vector<double>(N);
-			int length = ((path_x.size()-1) < (N-1)) ? (path_x.size()-1) : (N-1);
-			for( int i = 0; i < length ; i++){
-				ptsx.at(i) = path_x.at(i);
-				ptsy.at(i) = path_y.at(i);
-			}
 			if(verbose){
 				for (auto i=0; i<ptsx.size(); i++){
 				ROS_INFO("[%f],[%f]\n", ptsx.at(i),ptsy.at(i));
@@ -266,16 +227,20 @@ int main(int argc, char **argv)
 		ros::init(argc, argv, "controller");
 		ros::NodeHandle n;
 		Controller controller;
-		ros::Subscriber state = n.subscribe("/odom", 20, &Controller::observe, &controller);
+		ros::Subscriber state = n.subscribe("/odom", 1, &Controller::observe, &controller);
 		// ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
-		ros::Subscriber path = n.subscribe("/rrt_path", 20, &Controller::get_path, &controller);
-		// ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
-		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 10);
-		ros::Rate loop_rate(20);
+		ros::Subscriber path = n.subscribe("/move_base/TrajectoryPlannerROS/local_plan", 1, &Controller::get_path, &controller);
+		ros::Subscriber goal = n.subscribe("/move_base_simple/goal", 1, &Controller::get_goal, &controller);
+		ros::Publisher control = n.advertise<ackermann_msgs::AckermannDriveStamped>("/drive", 1);
+		ros::Rate loop_rate(10);
+
 		while (ros::ok())
 		{       
+				
 				control.publish(controller.control());
+
 				ros::spinOnce();
+
 				loop_rate.sleep();
 	
 		}

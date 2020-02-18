@@ -1,4 +1,4 @@
-#include "MPC.h"
+#include "MPC_DWA.h"
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
@@ -23,16 +23,16 @@ class FG_eval {
     for (int t = 0; t < N; t++) {
       // fg[0] += 100.0*CppAD::pow(vars[cte_start + t], 2);
       // fg[0] += 100.0*CppAD::pow(vars[epsi_start + t], 2);
-      fg[0] += 500 *CppAD::pow(vars[x_start + t]-tgx[t], 2);
-      fg[0] += 500 *CppAD::pow(vars[y_start + t]-tgy[t], 2);
-      fg[0] += 50*CppAD::pow(vars[v_start + t]- ref_v, 2);
+      fg[0] += 100 *CppAD::pow(vars[x_start + t]-tgx[t], 2);
+      fg[0] += 100 *CppAD::pow(vars[y_start + t]-tgy[t], 2);
+      fg[0] += 50*CppAD::pow(vars[v_start + t]- ref_v , 2);
 
       // fg[0] += 10*(CppAD::pow(vars[x_start + t] - goal[0], 2)+CppAD::pow(vars[y_start + t] - goal[1], 2));
     }
 
     for (int t = 0; t < N - 1; t++) {
       fg[0] += 10*CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 1*CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 10*CppAD::pow(vars[a_start + t], 2);
     }
 
     // for (int t = 0; t < N - 2; t++) {
@@ -70,7 +70,6 @@ class FG_eval {
         // AD<double> epsi0 = vars[epsi_start + t - 1];
         AD<double> delta0 = vars[delta_start + t - 1];
         AD<double> a0 = vars[a_start + t - 1];
-      
 
         // AD<double> f0 = coeffs[3]*x0*x0*x0 + coeffs[2]*x0*x0 + coeffs[1]*x0 + coeffs[0];
         // AD<double> psides0 = CppAD::atan(coeffs[1] + (2*coeffs[2]*x0) + (3*coeffs[3]*x0*x0));
@@ -136,20 +135,15 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd ptsx, Eigen::Ve
 
   // The upper and lower limits of delta are set to -25 and 25
   // degrees (values in radians).
-  for (i = v_start; i < delta_start; i++) {
-    vars_lowerbound[i] =  0; 
-    vars_upperbound[i] =  2; 
-  }
-
   for (i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] =  -0.5; 
-    vars_upperbound[i] =  0.5; 
+    vars_lowerbound[i] =  -0.34; //-0.436332*Lf;
+    vars_upperbound[i] =  0.34; //0.436332*Lf;
   }
 
   // Acceleration/decceleration upper and lower limits.
   for (i = a_start; i < n_vars; i++) {
-    vars_lowerbound[i] = -1;
-    vars_upperbound[i] = 1;
+    vars_lowerbound[i] = -0.8;
+    vars_upperbound[i] = 0.8;
   }
 
 
@@ -191,7 +185,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd ptsx, Eigen::Ve
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.2\n";
+  options += "Numeric max_cpu_time          0.1\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;

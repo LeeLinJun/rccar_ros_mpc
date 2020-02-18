@@ -147,7 +147,11 @@ link_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/rccar_ctr_node.cpp)
 add_executable(control src/Controller.cpp src/MPC.cpp)
+add_executable(control_DWA src/Controller_DWA.cpp src/MPC_DWA.cpp)
+
 target_link_libraries(control ${catkin_LIBRARIES} ipopt)
+target_link_libraries(control_DWA ${catkin_LIBRARIES} ipopt)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use

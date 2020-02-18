@@ -22,7 +22,7 @@ class MPC {
 
 // Set the timestep length and duration
 // const int N = 20;
-const double dt = 0.04;
+const double dt = 0.05;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -34,11 +34,11 @@ const double dt = 0.04;
 // presented in the classroom matched the previous radius.
 //
 // This is the length from front to CoG that has a similar radius.
-const double Lf = 0.324;
-const int N = 40;
+const double Lf = 0.325;
+const int N = 25;
 const double ref_cte = 0;
 const double ref_epsi = 0;
-const double ref_v = 0.1;
+const double ref_v = 1;
 
 const size_t x_start = 0;
 const size_t y_start = x_start + N;
