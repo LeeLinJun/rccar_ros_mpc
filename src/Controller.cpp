@@ -25,36 +25,35 @@
 
 class Controller
 {
-		public:
-				void observe(const nav_msgs::Odometry::ConstPtr& msg);
-				void get_path(const nav_msgs::Path::ConstPtr& msg);
-				void get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg);
-				ackermann_msgs::AckermannDriveStamped control();
-				bool verbose = false;
-				// vector<double> path_x = {};
-				// vector<double> path_y = {};
-				std::vector<double> path_x = vector<double>(32);
-				std::vector<double> path_y = vector<double>(32)	;
-				std::vector<double> path_goal = vector<double>(2);
-				Controller(){
-					// if(true){
-					// 	read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
-					// }
-					
-				}
-		private:
-				MPC mpc;
-				double x, 
-					   y, 
-					   th, 
-					   vel, 
-					   vth,
-					   a = 0, 
-					   sta=0;
-				int curr = 0;
-				Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,int order);
-				double polyeval(Eigen::VectorXd coeffs, double x);
-				Eigen::VectorXd coeffs;
+	public:
+	void observe(const nav_msgs::Odometry::ConstPtr& msg);
+	void get_path(const nav_msgs::Path::ConstPtr& msg);
+	void get_goal(const geometry_msgs::PoseStamped::ConstPtr& msg);
+	ackermann_msgs::AckermannDriveStamped control();
+	bool verbose = false;
+	// vector<double> path_x = {};
+	// vector<double> path_y = {};
+	std::vector<double> path_x = vector<double>(32);
+	std::vector<double> path_y = vector<double>(32)	;
+	std::vector<double> path_goal = vector<double>(2);
+	Controller(){
+		// if(true){
+		// 	read_csv_path(ros::package::getPath("rccar_ros_mpc")+"/src/path.csv", path_x, path_y, path_goal);
+		// }
+	}
+	private:
+	MPC mpc;
+	double x, 
+	y, 
+	th, 
+   	vel, 
+   	vth,
+   	a = 0, 
+   	sta=0;
+	int curr = 0;
+	Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,int order);
+	double polyeval(Eigen::VectorXd coeffs, double x);
+	Eigen::VectorXd coeffs;
 
 };
 
