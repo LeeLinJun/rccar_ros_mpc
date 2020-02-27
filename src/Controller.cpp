@@ -28,7 +28,7 @@ void Controller::get_path(const nav_msgs::Path::ConstPtr& msg)
 {
 	std::vector<geometry_msgs::PoseStamped> poses = msg->poses;
 	// std::cout<<poses.size()<<std::endl;
-	int k = 2;
+	int k = 1;
 	int length = poses.size()>(std::size_t)(N*k) ? N: poses.size(), start = 0;
 	
 	double min = 1e10;
