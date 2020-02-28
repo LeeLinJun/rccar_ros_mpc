@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(rccar_ros_mpc)
+project(mpc_controller)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS "${CXX_FLAGS}")
 add_definitions(-std=c++11 -O3)
@@ -146,8 +146,10 @@ link_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/rccar_ctr_node.cpp)
-add_executable(control src/Controller.cpp src/MPC.cpp)
+add_executable(control src/main.cpp src/MPC.cpp src/Controller.cpp)
+
 target_link_libraries(control ${catkin_LIBRARIES} ipopt)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
